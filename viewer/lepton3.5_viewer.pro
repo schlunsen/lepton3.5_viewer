@@ -4,7 +4,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = 
 
-RPI_LIBS = ./sdk
+RPI_LIBS = ../sdk
 LEPTONSDK = leptonSDKEmb32PUB
 
 PRE_TARGETDEPS += sdk
