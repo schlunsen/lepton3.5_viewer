@@ -291,6 +291,10 @@ void LeptonThread::disable_agc() {
 	lepton_disable_agc();
 }
 
+void LeptonThread::enable_agc() {
+	lepton_enable_agc();
+}
+
 void LeptonThread::setColorMap(int index) {
 	selectedColorMap = index;
 }

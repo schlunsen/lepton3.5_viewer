@@ -37,6 +37,7 @@ public slots:
   void snapshot();
   void restart();
   void disable_agc();
+  void enable_agc();
   void setColorMap(int index);
 
 signals:

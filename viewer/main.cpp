@@ -17,7 +17,7 @@
 int main( int argc, char **argv )
 {
 	
-	int WindowWidth = 340;
+	int WindowWidth = 440;
 	int WindowHeight = 340;
 	int ImageWidth = 320;
 	int ImageHeight = 240;
@@ -56,6 +56,9 @@ int main( int argc, char **argv )
 	//create a disable AGC button
 	QPushButton *button4 = new QPushButton("Disable AGC", myWidget);
 	button4->setGeometry(ImageWidth/numberOfButtons+120, WindowHeight-65, 100, 30);
+
+	QPushButton *button5 = new QPushButton("Enable AGC", myWidget);
+	button4->setGeometry(ImageWidth/numberOfButtons+230, WindowHeight-65, 100, 30);
 //
 	// Add combobox
 	QLabel *selectBoxLabel = new QLabel(myWidget);
@@ -94,6 +97,9 @@ int main( int argc, char **argv )
 
 	//connect agc button to the thread's restart action
 	QObject::connect(button4, SIGNAL(clicked()), thread, SLOT(disable_agc()));
+
+	//connect agc button to the thread's restart action
+	QObject::connect(button5, SIGNAL(clicked()), thread, SLOT(enable_agc()));
 
 	thread->start();
 	
