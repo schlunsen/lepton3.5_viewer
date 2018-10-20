@@ -1,3 +1,6 @@
+This is based on https://github.com/novacoast/Lepton-3-Module/tree/master/software/raspberrypi_video with modifications
+
+
 This example has been tested on a Raspberry Pi 3 with Raspbian.
 
 Enable the SPI and I2C interfaces on the Pi.
@@ -9,6 +12,9 @@ qmake && make
 
 To clean:
 make sdkclean && make distclean
+
+To start:
+./viewer
 
 If you wish to run this application without using sudo, you should add the user "pi" to the usergroup "i2c".
 
