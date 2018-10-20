@@ -1,7 +1,10 @@
+Lepton 3.5 viewer
+---------------------
+
 This is based on https://github.com/novacoast/Lepton-3-Module/tree/master/software/raspberrypi_video with modifications
 
 
-This example has been tested on a Raspberry Pi 3 with Raspbian.
+This example has been tested on a Raspberry Pi 3 with Raspbian and a lepton 3.5 module[https://www.digikey.es/product-detail/en/flir/500-0771-01/500-0771-01-ND/7606616].
 
 Enable the SPI and I2C interfaces on the Pi.
 
