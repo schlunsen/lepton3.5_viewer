@@ -84,7 +84,7 @@ void lepton_disable_agc() {
 	}
 	printf("Disable AGC...\n");
 	
-	int res = (int)LEP_SetAgcEnableState(&_port, LEP_AGC_ENABLE);
+	int res = (int)LEP_SetAgcEnableState(&_port, LEP_AGC_DISABLE);
 
 	if(res != 0) {
 		printf("Disable AGC unsuccessful with error: %d\n", res);
