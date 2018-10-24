@@ -41,6 +41,7 @@ cmd_get_hwversion = 138
 cmd_set_rotation = 139
 cmd_set_calibration = 140
 cmd_get_hqresolution = 141
+cmd_clear_temp_spots = 142
 # serial frame commands
 cmd_rawframe = 150
 cmd_colorframe = 151
@@ -66,6 +67,7 @@ import shutil
 import struct
 import platform
 import datetime
+import time
 import io
 
 # Include color schemes
@@ -128,6 +130,7 @@ buttonLimits = None
 buttonFormat = None
 buttonRotation = None
 buttonLaser = None
+buttonClearTempSpots = None
 buttonShutter = None
 buttonCalibration = None
 allButtons = None
@@ -138,7 +141,7 @@ screen = None
 ser = None
 calTimer = None
 calTimeLeft = None
-renderMode = False
+renderMode = True
 recordVideo = False
 videoFolder = None
 videoCounter = 0
@@ -204,7 +207,6 @@ def setColorScheme(updateValue):
 
         # Check for ACK
         if inData[0] != cmd_set_colorscheme:
-            print inData
             return False
 
     # Arctic
@@ -651,47 +653,33 @@ def setRotation(updateValue):
     return True
 
 
-# Set Laser
-def setLaser(updateValue):
-    global laserEnabled
+def clearTempSpots():
+    for i in range(0, 96):
+        # Set to invalid
+        tempPoints[i][0] = 0
+        # Reset value
+        tempPoints[i][1] = 0
+    try:
+        
+        ser.write(chr(cmd_clear_temp_spots))    
+        
+        # Get ACK
+        inData = map(ord, ser.read(1))
 
-    # DIY-Thermocam V2 does not have a laser
-    if hardwareVersion == 1:
-        return True
 
-    # Update value
-    if updateValue:
-        # Toggle value
-        laserEnabled = not laserEnabled
-
-        # Send new value to the device
-        try:
-            # Send command and new value
-            sendArray = (chr(cmd_set_laser), chr(laserEnabled))
-            ser.write(sendArray)
-            # Get ACK
-            inData = map(ord, ser.read(1))
 
         # Error
-        except serial.serialutil.SerialException:
+    except serial.serialutil.SerialException:
             return False
 
-        # Timeout
-        if not inData:
-            return False
+     # Timeout
+    if not inData:
+        return False
 
-        # Check for ACK
-        if inData[0] != cmd_set_laser:
-            return False
+    # Check for ACK
+    if inData[0] != cmd_clear_temp_spots:
+        return False
 
-    # Update UI
-    if laserEnabled:
-        buttonLaser.caption = "Laser: On"
-    else:
-        buttonLaser.caption = "Laser: Off"
-    buttonLaser.draw(screen)
-
-    # Everything worked
     return True
 
 
@@ -822,7 +810,7 @@ def drawButtons():
     global buttonSaveThermal, buttonSaveVisual, buttonSaveVideo, buttonRenderMode, \
         buttonSpot, buttonBar, buttonHotCold, buttonTextColor, \
         buttonFilter, buttonColor, buttonLimits, buttonFormat, \
-        buttonRotation, buttonLaser, buttonShutter, buttonCalibration, allButtons
+        buttonRotation, buttonClearTempSpots, buttonShutter, buttonCalibration, allButtons
 
     # First row
     buttonRenderMode = pygbutton.PygButton((11, 491, 147, 27), 'Mode: Rendering')
@@ -844,7 +832,8 @@ def drawButtons():
 
     # Fourth row
     buttonRotation = pygbutton.PygButton((11, 602, 147, 27), 'Rotation: Off')
-    buttonLaser = pygbutton.PygButton((168, 602, 147, 27), 'Laser: Off')
+    buttonClearTempSpots = pygbutton.PygButton((168, 602, 147, 27), 'Clear temp spots')
+    
     buttonShutter = pygbutton.PygButton((325, 602, 147, 27), 'Trigger Shutter')
     buttonCalibration = pygbutton.PygButton((482, 602, 147, 27), 'Run Calibration')
 
@@ -852,7 +841,7 @@ def drawButtons():
     allButtons = (buttonSaveThermal, buttonSaveVisual, buttonSaveVideo, buttonRenderMode,
                   buttonSpot, buttonBar, buttonHotCold, buttonTextColor,
                   buttonFilter, buttonColor, buttonLimits, buttonFormat,
-                  buttonRotation, buttonLaser, buttonShutter, buttonCalibration)
+                  buttonRotation, buttonClearTempSpots, buttonShutter, buttonCalibration)
 
     # Draw the buttons
     for b in allButtons:
@@ -952,7 +941,7 @@ def displayText(msg, wait):
 
     # Opt: Wait a second, so the user can read the text
     if wait:
-        time.sleep(1)
+        time.sleep(0.5)
 
 
 # Starts or stops video recording
@@ -999,6 +988,7 @@ def videoRecord():
         # Use ffmpeg to convert the frames to avi
         ffmpegCmd = 'ffmpeg -framerate %d -i %s/%%06d.jpg -codec copy %s' % \
                     (round(frames), videoFolder, videoFolder + ".avi")
+        print ffmpegCmd
         os.system(ffmpegCmd)
 
         # Remove the folder with the single frames
@@ -1134,6 +1124,7 @@ def checkExit():
 # Check if the warmup has been completed
 def checkWarmup():
     global calStatus
+    print "Check warmup"
 
     # If calibration status is warmup and longer than remaining time, switch to done
     if calStatus == 0 and (time.time() - calTimer) >= calTimeLeft:
@@ -1324,6 +1315,7 @@ def drawTemperature(xpos, ypos, rawValue, minMax):
 
     # Draw marker
     pygame.draw.circle(thermalImg, color, (xpos, ypos), 2)
+    print "Draw temp"
 
     # Calc x position for the temperature
     if checkWarmup():
@@ -1557,7 +1549,7 @@ def createThermalImage():
 
 
 # Extracts RGB values from the lepton raw data
-def extractRGB(buff):
+def     extractRGB(buff):
     arr = numpy.fromstring(buff, dtype=numpy.uint16).newbyteorder('S')
     r = (((arr & 0xF800) >> 11) * 255.0 / 31.0).astype(numpy.uint8)
     g = (((arr & 0x07E0) >> 5) * 255.0 / 63.0).astype(numpy.uint8)
@@ -1570,6 +1562,7 @@ def extractRGB(buff):
 def getStream():
     global thermalImg
 
+
     # Calc length based on HW and HQRes
     if hardwareVersion == 0 or hqRes == 0:
         length = 38400
@@ -1579,6 +1572,7 @@ def getStream():
     # Try to receive a frame
     try:
         frameBuffer = ser.read(length)
+        
 
     # Error
     except serial.serialutil.SerialException:
@@ -1607,7 +1601,10 @@ def getStream():
     # Scale image smooth
     thermalImg = pygame.transform.smoothscale(img, (640, 480))
 
+    #pygame.image.save(thermalImg, os.path.join("thermal", time.strftime("%Y%m%d%H%M%S.jpg", time.gmtime())))
+
     # Refresh screen
+    
     screen.blit(thermalImg, (0, 0))
 
     # Everything OK
@@ -1627,7 +1624,9 @@ def getFrameData():
 
     # Try to receive the data
     try:
+        
         leptonData = map(ord, ser.read(length))
+        
 
     # Error
     except serial.serialutil.SerialException:
@@ -1636,36 +1635,46 @@ def getFrameData():
 
     # Length does not match
     if len(leptonData) != length:
+        print "Length doesnt' match"
         return False
 
     # Timeout
     if not leptonData:
+        print "Timeout"
         return False
 
     # Try to receive the additional data
     try:
         additionalData = map(ord, ser.read(16))
+        print additionalData
 
     # Error
     except serial.serialutil.SerialException:
+        print "Additional data erorr"
         return False
 
     # Timeout
     if not additionalData:
+        print "no addiational data"
         return False
 
     # Return if size does not match
     if len(additionalData) != 16:
+        print "under 16 don't match"
         return False
 
     # Read min & max
     minData = additionalData[0] * 256 + additionalData[1]
     maxData = additionalData[2] * 256 + additionalData[3]
 
+    
+
     # Read spot temp
     spotTemp = [additionalData[4], additionalData[5], additionalData[6], additionalData[7]]
     spotTemp = ''.join(chr(i) for i in spotTemp)
     spotTemp = float(struct.unpack('f', spotTemp)[0])
+
+    print spotTemp
 
     # Read calibration offset
     calOffset = [additionalData[8], additionalData[9], additionalData[10], additionalData[11]]
@@ -1710,6 +1719,10 @@ def getConfigData():
 
     # Read lepton version
     leptonVersion = configData[0]
+
+    # XXX: EASY FIX FOR LEPTON 3.5
+    leptonVersion = 1
+    
     # Lepton 2 non shuttered, make it to zero
     if leptonVersion == 2:
         leptonVersion = 0
@@ -1749,7 +1762,7 @@ def getConfigData():
     setLimits(False)
     # Laser is disabled by default
     laserEnabled = False
-    setLaser(False)
+    
 
     # Update screen
     pygame.display.flip()
@@ -1768,6 +1781,7 @@ def serialHandler():
     try:
         # Send get raw frame command
         if renderMode:
+            print "Get raw frame"
             ser.write(chr(cmd_rawframe))
         # Send a get display frame command
         else:
@@ -1790,6 +1804,7 @@ def serialHandler():
 
     # Parse the command
     cmd = inData[0]
+    print "Command", cmd
 
     # Save thermal image command
     if cmd == frame_capture_thermal:
@@ -1815,6 +1830,7 @@ def serialHandler():
         # Rendering mode
         if renderMode:
             # Get lepton frame data
+            
             if not getFrameData():
                 return False
             # Create the thermal image
@@ -1873,7 +1889,7 @@ def getTempPoints():
             tempPoints[i][0] = 0
         # Value
         tempPoints[i][1] = inData[(i * 4) + 2] * 256 + inData[(i * 4) + 3]
-        print tempPoints
+        
 
     # Everything worked
     return True
@@ -2168,6 +2184,7 @@ def connect():
         # Try to open the ports
         try:
             ser = serial.Serial(device, 115200)
+            #ser = serial.Serial(device, 2000000)
         # Did not work, try again in 1s
         except Exception:
             print ""
@@ -2311,10 +2328,10 @@ def eventHandler():
             if not setRotation(True):
                 displayText("Error setting rotation on device!", True)
 
-        # Laser
-        if 'click' in buttonLaser.handleEvent(event):
-            if not setLaser(True):
-                displayText("Error setting laserEnabled on device!", True)
+        # CLear temp spots
+        if 'click' in buttonClearTempSpots.handleEvent(event):
+            if not clearTempSpots():
+                displayText("Error clearing temp spots!", True)
 
         # Shutter
         if 'click' in buttonShutter.handleEvent(event):
@@ -2329,6 +2346,7 @@ def eventHandler():
 # Init procedures
 def setup():
     global screen
+    leptonVersion = 1
 
     # Add environment variable for Windows XP
     if platform.release() == 6:
@@ -2355,7 +2373,6 @@ def setup():
 def loop():
     # Try to establish a connection
     while not connect():
-        import pdb; pdb.set_trace()
         displayText("Error connecting to device..", True)
 
     # Connection established
@@ -2366,6 +2383,7 @@ def loop():
 
     while True:
         # Check for serial events
+        
         if not serialHandler():
 
             ser.close()
@@ -2380,7 +2398,9 @@ def loop():
         eventHandler()
 
         # Update screen
+        
         pygame.display.flip()
+        
 
 
 # Call of functions
